@@ -20,6 +20,7 @@ import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingEvent.LivingTickEvent;
+import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -34,6 +35,9 @@ public class Main {
     
     // 存储受保护的实体UUID
     private static final Set<UUID> PROTECTED_ENTITIES = new HashSet<>();
+    
+    // 存储每个受保护实体的血量
+    private static final Map<UUID, Float> PROTECTED_HEALTH = new HashMap<>();
     
     public Main() {
         // 注册事件监听
@@ -79,7 +83,10 @@ public class Main {
         int resultCount = 0;
         for (Entity entity : entities) {
             if (entity instanceof LivingEntity) {
+                LivingEntity livingEntity = (LivingEntity) entity;
                 PROTECTED_ENTITIES.add(entity.getUUID());
+                // 存储当前血量
+                PROTECTED_HEALTH.put(entity.getUUID(), livingEntity.getHealth());
                 resultCount++;
             }
         }
@@ -92,6 +99,8 @@ public class Main {
         int resultCount = 0;
         for (Entity entity : entities) {
             if (PROTECTED_ENTITIES.remove(entity.getUUID())) {
+                // 移除存储的血量
+                PROTECTED_HEALTH.remove(entity.getUUID());
                 resultCount++;
             }
         }
@@ -198,14 +207,22 @@ public class Main {
     public void onPlayerClone(PlayerEvent.Clone event) {
         Player original = event.getOriginal();
         Player player = event.getEntity();
+        UUID originalUUID = original.getUUID();
+        UUID newUUID = player.getUUID();
         
-        if (PROTECTED_ENTITIES.contains(original.getUUID())) {
-            PROTECTED_ENTITIES.add(player.getUUID());
+        if (PROTECTED_ENTITIES.contains(originalUUID)) {
+            PROTECTED_ENTITIES.add(newUUID);
+            // 复制存储的血量信息
+            if (PROTECTED_HEALTH.containsKey(originalUUID)) {
+                PROTECTED_HEALTH.put(newUUID, Math.min(PROTECTED_HEALTH.get(originalUUID), player.getMaxHealth()));
+            }
         }
         
         // 确保克隆的玩家有CannotDie标签（如果原玩家有）
         if (original.getTags().contains("CannotDie")) {
             player.addTag("CannotDie");
+            // 对于标签保护的玩家，存储其满血状态
+            PROTECTED_HEALTH.put(newUUID, player.getMaxHealth());
         }
     }
     
@@ -250,26 +267,39 @@ public class Main {
         }
     }
     
-    // Listen to damage event, prevent protected entities from receiving fatal damage
+    // Listen to damage event, restore health to stored value for protected entities
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onLivingDamage(LivingDamageEvent event) {
         LivingEntity entity = event.getEntity();
+        UUID entityUUID = entity.getUUID();
         
-        if (isEntityProtected(entity)) {
-            // Calculate remaining health
-            float remainingHealth = entity.getHealth() - event.getAmount();
+        if (isEntityProtected(entity) && PROTECTED_HEALTH.containsKey(entityUUID)) {
+            // 取消伤害事件
+            event.setCanceled(true);
             
-            // 如果会导致死亡，调整伤害
-            if (remainingHealth <= 0) {
-                // Set damage to current health -1 to ensure no death
-                event.setAmount(entity.getHealth() - 0.5F);
-                
-                // Send prompt message (if player)
-                if (entity instanceof Player) {
-                    Player player = (Player) entity;
-                    player.sendSystemMessage(Component.literal("[ God Mode ] You are protected, damage has been reduced!"));
-                }
+            // 恢复到存储的血量
+            float storedHealth = PROTECTED_HEALTH.get(entityUUID);
+            entity.setHealth(storedHealth);
+            
+            // Send prompt message (if player)
+            if (entity instanceof Player) {
+                Player player = (Player) entity;
+                player.sendSystemMessage(Component.literal("[ God Mode ] You are protected, health restored!"));
             }
+        }
+    }
+    
+    // Listen to heal event, update stored health for protected entities
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onLivingHeal(LivingHealEvent event) {
+        LivingEntity entity = event.getEntity();
+        UUID entityUUID = entity.getUUID();
+        
+        if (isEntityProtected(entity) && PROTECTED_HEALTH.containsKey(entityUUID)) {
+            // 计算治疗后的血量
+            float newHealth = Math.min(entity.getHealth() + event.getAmount(), entity.getMaxHealth());
+            // 更新存储的血量
+            PROTECTED_HEALTH.put(entityUUID, newHealth);
         }
     }
 }

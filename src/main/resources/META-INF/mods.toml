@@ -6,18 +6,18 @@ showAsResourcePack=false
 [[mods]]
 modId="nodead"
 namespace="nodead"
-version="1.0"
+version="0.1.1"
 name="You can't dead!"
 description="一个简单的模组，让玩家不会死亡！"
 authors=["Aquavie"]
 credits="Aquavie"
-logoFile=""
+logoFile="logo.png"
 updateJSONURL=""
-displayURL=""
+displayURL="https://github.com/chezixiang/You-can-not-Dead"
 sourcesURL=""
 screenshots=[]
 displayTest="NONE"
-issueTrackerURL=""
+issueTrackerURL="https://github.com/chezixiang/You-can-not-Dead/issues"
 
 [[dependencies.nodead]]
 modId="forge"
@@ -29,6 +29,6 @@ side="BOTH"
 [[dependencies.nodead]]
 modId="minecraft"
 mandatory=true
-versionRange="[1.20.1,1.20.2)"
+versionRange="[1.20.1)"
 ordering="NONE"
 side="BOTH"
