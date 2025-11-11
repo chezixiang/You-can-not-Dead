@@ -6,7 +6,7 @@ showAsResourcePack=false
 [[mods]]
 modId="nodead"
 namespace="nodead"
-version="0.1.1"
+version="0.1.1-hotfix"
 name="You can't dead!"
 description="一个简单的模组，让玩家不会死亡！"
 authors=["Aquavie"]
@@ -29,6 +29,6 @@ side="BOTH"
 [[dependencies.nodead]]
 modId="minecraft"
 mandatory=true
-versionRange="[1.20.1)"
+versionRange="[1.20.1]"
 ordering="NONE"
 side="BOTH"
